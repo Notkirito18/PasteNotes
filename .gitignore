@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+*.spec
+PasteNotes_Portable.zip
+PasteNotesData/
+packaging/PasteNotes.ico
