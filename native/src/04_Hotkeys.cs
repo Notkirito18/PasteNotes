@@ -167,7 +167,7 @@ namespace PasteNotes
             KeyToken token = ResolveKey(keyName);
             if (modifiers == 0 && !IsFunctionKey(token.VirtualKey))
             {
-                throw new HotkeyException("Use at least one modifier (Ctrl/Alt/Shift/Win) or an F-key");
+                throw new HotkeyException("Use Ctrl/Alt/Shift/Win plus a key (for example Ctrl+E), or an F-key");
             }
 
             return new HotkeySpec(modifiers, token.VirtualKey, Format(modifiers, token.Display));

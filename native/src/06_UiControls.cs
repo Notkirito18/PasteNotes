@@ -343,44 +343,54 @@ namespace PasteNotes
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            if (TryCapture(keyData)) return true;
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            Keys key = e.KeyCode;
-            bool functionKey = key >= Keys.F1 && key <= Keys.F24;
-
-            if (e.Control || e.Alt || functionKey)
+            if (TryCapture(e.KeyData))
             {
-                string display = HotkeyParser.DisplayFromKey(key);
-                if (display != null)
-                {
-                    uint modifiers = 0;
-                    if (e.Control) modifiers |= NativeMethods.MOD_CONTROL;
-                    if (e.Alt) modifiers |= NativeMethods.MOD_ALT;
-                    if (e.Shift) modifiers |= NativeMethods.MOD_SHIFT;
-
-                    string candidate = HotkeyParser.Format(modifiers, display);
-                    try
-                    {
-                        HotkeySpec spec = HotkeyParser.Parse(candidate);
-                        Text = spec.Text;
-                        SelectionStart = Text.Length;
-                        SelectionLength = 0;
-                        if (CaptureCommitted != null) CaptureCommitted(this, EventArgs.Empty);
-                    }
-                    catch (HotkeyException)
-                    {
-                    }
-
-                    e.Handled = true;
-                    e.SuppressKeyPress = true;
-                    return;
-                }
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
             }
 
             base.OnKeyDown(e);
+        }
+
+        private bool TryCapture(Keys keyData)
+        {
+            Keys key = keyData & Keys.KeyCode;
+            bool functionKey = key >= Keys.F1 && key <= Keys.F24;
+            bool control = (keyData & Keys.Control) == Keys.Control;
+            bool alt = (keyData & Keys.Alt) == Keys.Alt;
+            bool shift = (keyData & Keys.Shift) == Keys.Shift;
+
+            if (!control && !alt && !functionKey) return false;
+
+            string display = HotkeyParser.DisplayFromKey(key);
+            if (display == null) return false;
+
+            uint modifiers = 0;
+            if (control) modifiers |= NativeMethods.MOD_CONTROL;
+            if (alt) modifiers |= NativeMethods.MOD_ALT;
+            if (shift) modifiers |= NativeMethods.MOD_SHIFT;
+
+            string candidate = HotkeyParser.Format(modifiers, display);
+            try
+            {
+                HotkeySpec spec = HotkeyParser.Parse(candidate);
+                Text = spec.Text;
+                SelectionStart = Text.Length;
+                SelectionLength = 0;
+                if (CaptureCommitted != null) CaptureCommitted(this, EventArgs.Empty);
+                return true;
+            }
+            catch (HotkeyException)
+            {
+                return false;
+            }
         }
     }
 

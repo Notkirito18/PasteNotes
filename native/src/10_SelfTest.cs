@@ -216,6 +216,10 @@ namespace PasteNotes
         private static void TestHotkeys()
         {
             Check(HotkeyParser.Normalize("ctrl+alt+1") == "Ctrl+Alt+1", "hotkey normalization");
+            Check(HotkeyParser.Normalize("Ctrl+E") == "Ctrl+E", "two-key hotkey is allowed");
+            HotkeySpec twoKey = HotkeyParser.Parse("Ctrl+E");
+            Check(twoKey.Modifiers == NativeMethods.MOD_CONTROL && twoKey.VirtualKey == (uint)Keys.E,
+                "two-key hotkey maps to Ctrl+E");
             Check(HotkeyParser.Normalize("F9") == "F9", "function key hotkey is allowed");
             Check(HotkeyParser.Normalize("Ctrl++") == "Ctrl++", "plus key hotkey is allowed");
             Check(HotkeyParser.Normalize("Shift+Win+K") == "Shift+Win+K", "Windows key hotkey is allowed");

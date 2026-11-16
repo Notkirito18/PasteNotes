@@ -1768,7 +1768,7 @@ namespace PasteNotes
             KeyToken token = ResolveKey(keyName);
             if (modifiers == 0 && !IsFunctionKey(token.VirtualKey))
             {
-                throw new HotkeyException("Use at least one modifier (Ctrl/Alt/Shift/Win) or an F-key");
+                throw new HotkeyException("Use Ctrl/Alt/Shift/Win plus a key (for example Ctrl+E), or an F-key");
             }
 
             return new HotkeySpec(modifiers, token.VirtualKey, Format(modifiers, token.Display));
@@ -2685,44 +2685,54 @@ namespace PasteNotes
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            if (TryCapture(keyData)) return true;
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            Keys key = e.KeyCode;
-            bool functionKey = key >= Keys.F1 && key <= Keys.F24;
-
-            if (e.Control || e.Alt || functionKey)
+            if (TryCapture(e.KeyData))
             {
-                string display = HotkeyParser.DisplayFromKey(key);
-                if (display != null)
-                {
-                    uint modifiers = 0;
-                    if (e.Control) modifiers |= NativeMethods.MOD_CONTROL;
-                    if (e.Alt) modifiers |= NativeMethods.MOD_ALT;
-                    if (e.Shift) modifiers |= NativeMethods.MOD_SHIFT;
-
-                    string candidate = HotkeyParser.Format(modifiers, display);
-                    try
-                    {
-                        HotkeySpec spec = HotkeyParser.Parse(candidate);
-                        Text = spec.Text;
-                        SelectionStart = Text.Length;
-                        SelectionLength = 0;
-                        if (CaptureCommitted != null) CaptureCommitted(this, EventArgs.Empty);
-                    }
-                    catch (HotkeyException)
-                    {
-                    }
-
-                    e.Handled = true;
-                    e.SuppressKeyPress = true;
-                    return;
-                }
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
             }
 
             base.OnKeyDown(e);
+        }
+
+        private bool TryCapture(Keys keyData)
+        {
+            Keys key = keyData & Keys.KeyCode;
+            bool functionKey = key >= Keys.F1 && key <= Keys.F24;
+            bool control = (keyData & Keys.Control) == Keys.Control;
+            bool alt = (keyData & Keys.Alt) == Keys.Alt;
+            bool shift = (keyData & Keys.Shift) == Keys.Shift;
+
+            if (!control && !alt && !functionKey) return false;
+
+            string display = HotkeyParser.DisplayFromKey(key);
+            if (display == null) return false;
+
+            uint modifiers = 0;
+            if (control) modifiers |= NativeMethods.MOD_CONTROL;
+            if (alt) modifiers |= NativeMethods.MOD_ALT;
+            if (shift) modifiers |= NativeMethods.MOD_SHIFT;
+
+            string candidate = HotkeyParser.Format(modifiers, display);
+            try
+            {
+                HotkeySpec spec = HotkeyParser.Parse(candidate);
+                Text = spec.Text;
+                SelectionStart = Text.Length;
+                SelectionLength = 0;
+                if (CaptureCommitted != null) CaptureCommitted(this, EventArgs.Empty);
+                return true;
+            }
+            catch (HotkeyException)
+            {
+                return false;
+            }
         }
     }
 
@@ -3053,6 +3063,10 @@ namespace PasteNotes
             _hotkeyBox.CaptureCommitted += delegate { CommitHotkey(true); };
             _hotkeyBox.KeyDown += HotkeyKeyDown;
             _hotkeyBox.Leave += delegate { CommitHotkey(false); };
+            _hotkeyBox.HandleCreated += delegate
+            {
+                UiHelpers.SetCueBanner(_hotkeyBox, "Press shortcut, e.g. Ctrl+E");
+            };
             BorderPanel hotkeyPanel = Theme.WrapInput(_hotkeyBox);
             hotkeyPanel.Dock = DockStyle.Fill;
             hotkeyPanel.Height = 30;
@@ -3065,6 +3079,7 @@ namespace PasteNotes
             {
                 _hotkeyBox.Text = "";
                 CommitHotkey(true);
+                _hotkeyBox.Focus();
             };
             hotkeyRow.Controls.Add(_clearHotkeyButton, 2, 0);
 
@@ -3182,6 +3197,8 @@ namespace PasteNotes
 
             _savedTip = new ToolTip();
             _savedTip.SetToolTip(_savedLabel, "Changes are saved automatically.");
+            _savedTip.SetToolTip(_hotkeyBox, "Click the field, then press the keys. Example: Ctrl+E.");
+            _savedTip.SetToolTip(_clearHotkeyButton, "Remove this group's hotkey.");
 
             return panel;
         }
@@ -4887,6 +4904,10 @@ namespace PasteNotes
         private static void TestHotkeys()
         {
             Check(HotkeyParser.Normalize("ctrl+alt+1") == "Ctrl+Alt+1", "hotkey normalization");
+            Check(HotkeyParser.Normalize("Ctrl+E") == "Ctrl+E", "two-key hotkey is allowed");
+            HotkeySpec twoKey = HotkeyParser.Parse("Ctrl+E");
+            Check(twoKey.Modifiers == NativeMethods.MOD_CONTROL && twoKey.VirtualKey == (uint)Keys.E,
+                "two-key hotkey maps to Ctrl+E");
             Check(HotkeyParser.Normalize("F9") == "F9", "function key hotkey is allowed");
             Check(HotkeyParser.Normalize("Ctrl++") == "Ctrl++", "plus key hotkey is allowed");
             Check(HotkeyParser.Normalize("Shift+Win+K") == "Shift+Win+K", "Windows key hotkey is allowed");

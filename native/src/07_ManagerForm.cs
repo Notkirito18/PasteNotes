@@ -239,6 +239,10 @@ namespace PasteNotes
             _hotkeyBox.CaptureCommitted += delegate { CommitHotkey(true); };
             _hotkeyBox.KeyDown += HotkeyKeyDown;
             _hotkeyBox.Leave += delegate { CommitHotkey(false); };
+            _hotkeyBox.HandleCreated += delegate
+            {
+                UiHelpers.SetCueBanner(_hotkeyBox, "Press shortcut, e.g. Ctrl+E");
+            };
             BorderPanel hotkeyPanel = Theme.WrapInput(_hotkeyBox);
             hotkeyPanel.Dock = DockStyle.Fill;
             hotkeyPanel.Height = 30;
@@ -251,6 +255,7 @@ namespace PasteNotes
             {
                 _hotkeyBox.Text = "";
                 CommitHotkey(true);
+                _hotkeyBox.Focus();
             };
             hotkeyRow.Controls.Add(_clearHotkeyButton, 2, 0);
 
@@ -368,6 +373,8 @@ namespace PasteNotes
 
             _savedTip = new ToolTip();
             _savedTip.SetToolTip(_savedLabel, "Changes are saved automatically.");
+            _savedTip.SetToolTip(_hotkeyBox, "Click the field, then press the keys. Example: Ctrl+E.");
+            _savedTip.SetToolTip(_clearHotkeyButton, "Remove this group's hotkey.");
 
             return panel;
         }
